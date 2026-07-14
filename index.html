@@ -12,8 +12,10 @@
         .expense-row { border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .expense-date { font-weight: bold; color: #555; font-size: 0.9em; }
         .expense-details { display: flex; justify-content: space-between; margin-top: 5px; margin-bottom: 10px; font-size: 1.1em;}
-        .receipt-img { max-width: 100%; border-radius: 4px; margin-top: 10px; display: block; border: 1px solid #ddd; }
-        .download-btn { display: inline-block; background: #007bff; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 0.8em; margin-top: 10px; text-align: center; }
+        .receipt-container { margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px;}
+        .receipt-img { max-width: 100%; border-radius: 4px; margin-bottom: 5px; display: block; border: 1px solid #ddd; }
+        .download-btn { display: inline-block; background: #007bff; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 0.8em; margin-bottom: 15px; text-align: center; width: 100%; box-sizing: border-box;}
+        .total-tracker { font-size: 1.3em; font-weight: bold; color: #dc3545; text-align: right; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 10px;}
     </style>
 </head>
 <body>
@@ -32,17 +34,18 @@
             <h2>Add Budget Entry</h2>
             <input type="date" id="expense-date" required>
             <input type="text" id="expense-category" placeholder="Category (e.g., Travel, Rent)" required>
-            <input type="number" id="expense-amount" placeholder="Amount" required>
+            <input type="number" id="expense-amount" placeholder="Amount (₹)" required>
             
-            <!-- File Upload (Max 1MB) -->
-            <label for="expense-receipt" style="font-size: 0.9em; color: #555;">Attach Private Screenshot (Under 1MB):</label>
-            <input type="file" id="expense-receipt" accept="image/*">
+            <!-- File Upload (Now supports multiple files) -->
+            <label for="expense-receipt" style="font-size: 0.9em; color: #555;">Attach Private Screenshots (Combined total under 750KB):</label>
+            <input type="file" id="expense-receipt" accept="image/*" multiple>
             
             <button id="add-btn" style="background-color: #28a745; color: white; border: none; border-radius: 4px;">Save Secure Entry</button>
         </div>
 
         <div class="card">
             <h2>My Timeline</h2>
+            <div id="total-spent" class="total-tracker">Total: ₹0</div>
             <div id="timeline-container">
                 <!-- Data will load here -->
             </div>
@@ -51,7 +54,7 @@
         <button id="logout-btn" style="background-color: #dc3545; color: white; border: none; border-radius: 4px;">Logout</button>
     </div>
 
-    <!-- Firebase SDKs (Only Auth and Firestore needed) -->
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -73,10 +76,10 @@
         const loginSection = document.getElementById('login-section');
         const appSection = document.getElementById('app-section');
         const timelineContainer = document.getElementById('timeline-container');
+        const totalSpentDisplay = document.getElementById('total-spent');
         const addBtn = document.getElementById('add-btn');
         let unsubscribe = null;
 
-        // Login / Logout Logic
         document.getElementById('login-btn').addEventListener('click', () => {
             signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value)
                 .catch(error => alert("Login Failed: " + error.message));
@@ -86,7 +89,6 @@
             signOut(auth);
         });
 
-        // Helper Function to completely automate Base64 Conversion
         function convertToBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -96,35 +98,41 @@
             });
         }
 
-        // Add New Entry Logic with Base64 Conversion
+        // Upgraded Entry Logic for Multiple Files
         addBtn.addEventListener('click', async () => {
             const date = document.getElementById('expense-date').value;
             const category = document.getElementById('expense-category').value;
             const amount = document.getElementById('expense-amount').value;
             const fileInput = document.getElementById('expense-receipt');
-            const file = fileInput.files[0];
+            const files = fileInput.files;
             const user = auth.currentUser;
 
             if (user && date && category && amount) {
                 
-                let base64String = null;
+                let base64Strings = [];
 
-                // If a file is selected, process it entirely in the background
-                if (file) {
-                    // Check if file is over 1MB (1,048,576 bytes)
-                    if (file.size > 1048576) {
-                        alert("For absolute privacy, your screenshot is being saved directly into the text database. It must be compressed to under 1MB. Please compress the image and try again.");
-                        return; // Stop the upload process
+                if (files.length > 0) {
+                    // Check combined file size (750KB limit to account for Base64 expansion)
+                    let totalSize = 0;
+                    for (let i = 0; i < files.length; i++) {
+                        totalSize += files[i].size;
+                    }
+
+                    if (totalSize > 750000) {
+                        alert("To ensure your database doesn't crash, the combined size of the screenshots must be under 750KB. Please compress the images or upload fewer at once.");
+                        return; 
                     }
                     
                     addBtn.innerText = "Encrypting and Saving...";
                     addBtn.disabled = true;
                     
-                    // Automatically convert image to text
                     try {
-                        base64String = await convertToBase64(file);
+                        for (let i = 0; i < files.length; i++) {
+                            const b64 = await convertToBase64(files[i]);
+                            base64Strings.push(b64);
+                        }
                     } catch (error) {
-                        alert("Error converting image.");
+                        alert("Error converting images.");
                         addBtn.innerText = "Save Secure Entry";
                         addBtn.disabled = false;
                         return;
@@ -135,16 +143,14 @@
                 }
 
                 try {
-                    // Save all data natively into the locked Firestore database
                     await addDoc(collection(db, `users/${user.uid}/expenses`), {
                         date: date,
                         category: category,
                         amount: Number(amount),
-                        receiptBase64: base64String, // This is the image code
+                        receiptsBase64: base64Strings, // Saves the array of images
                         timestamp: new Date()
                     });
                     
-                    // Clear inputs for the next entry
                     document.getElementById('expense-category').value = '';
                     document.getElementById('expense-amount').value = '';
                     fileInput.value = '';
@@ -159,7 +165,7 @@
             }
         });
 
-        // Monitor Login State & Load Data Automatically
+        // Upgraded Display Logic with Total Calculator
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginSection.classList.add('hidden');
@@ -169,16 +175,34 @@
                 
                 unsubscribe = onSnapshot(q, (snapshot) => {
                     timelineContainer.innerHTML = '';
+                    let totalAmount = 0;
+
                     snapshot.forEach((doc) => {
                         const data = doc.data();
                         
-                        // Automatically decode and display the image if it exists
+                        // Calculate total
+                        totalAmount += data.amount;
+                        
                         let attachmentHtml = '';
-                        if (data.receiptBase64) {
-                            // The browser instantly turns the text back into a viewable image
-                            attachmentHtml = `
-                                <img src="${data.receiptBase64}" class="receipt-img" alt="Private Screenshot">
-                                <a href="${data.receiptBase64}" download="payment_receipt_${data.date}.jpg" class="download-btn">⬇ Download Receipt</a>
+                        
+                        // Handle multiple newly uploaded images
+                        if (data.receiptsBase64 && data.receiptsBase64.length > 0) {
+                            attachmentHtml += '<div class="receipt-container">';
+                            data.receiptsBase64.forEach((b64, index) => {
+                                attachmentHtml += `
+                                    <img src="${b64}" class="receipt-img" alt="Screenshot ${index + 1}">
+                                    <a href="${b64}" download="receipt_${data.date}_part${index + 1}.jpg" class="download-btn">⬇ Download Part ${index + 1}</a>
+                                `;
+                            });
+                            attachmentHtml += '</div>';
+                        } 
+                        // Handle single images from older code versions
+                        else if (data.receiptBase64) {
+                            attachmentHtml += `
+                                <div class="receipt-container">
+                                    <img src="${data.receiptBase64}" class="receipt-img" alt="Private Screenshot">
+                                    <a href="${data.receiptBase64}" download="payment_receipt_${data.date}.jpg" class="download-btn">⬇ Download Receipt</a>
+                                </div>
                             `;
                         }
 
@@ -193,12 +217,16 @@
                             </div>
                         `;
                     });
+
+                    // Update the visual total tracker
+                    totalSpentDisplay.innerText = `Total: ₹${totalAmount}`;
                 });
             } else {
                 loginSection.classList.remove('hidden');
                 appSection.classList.add('hidden');
                 if (unsubscribe) unsubscribe();
                 timelineContainer.innerHTML = '';
+                totalSpentDisplay.innerText = 'Total: ₹0';
             }
         });
     </script>
