@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Budget Planner</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+        .hidden { display: none; }
+        input, button { display: block; width: 100%; margin: 10px 0; padding: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- Login Section -->
+    <div id="login-section">
+        <h2>Secure Login</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button id="login-btn">Login</button>
+    </div>
+
+    <!-- Budget Planner Section (Hidden until logged in) -->
+    <div id="app-section" class="hidden">
+        <h2>My Budget Timeline</h2>
+        <button id="logout-btn">Logout</button>
+        <div id="timeline-container">
+            <p>Welcome! Your secure timeline will load here.</p>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        
+        // Your specific Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyDm_SuNXATl-M3VLWx7nK8auu-y22S5hfs",
+          authDomain: "lifetime-ledger-57338.firebaseapp.com",
+          projectId: "lifetime-ledger-57338",
+          storageBucket: "lifetime-ledger-57338.firebasestorage.app",
+          messagingSenderId: "846282790599",
+          appId: "1:846282790599:web:d1c6fdeebb3198cae910e2",
+          measurementId: "G-LV9MPEKSCZ"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // Connect UI Elements
+        const loginSection = document.getElementById('login-section');
+        const appSection = document.getElementById('app-section');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        // 1. Login Action
+        loginBtn.addEventListener('click', () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            signInWithEmailAndPassword(auth, email, password)
+                .catch((error) => {
+                    alert("Login Failed: " + error.message);
+                });
+        });
+
+        // 2. Logout Action
+        logoutBtn.addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        // 3. Monitor Login State
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Securely logged in -> Show app, hide login
+                loginSection.classList.add('hidden');
+                appSection.classList.remove('hidden');
+            } else {
+                // Logged out -> Show login, hide app
+                loginSection.classList.remove('hidden');
+                appSection.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
