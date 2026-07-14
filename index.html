@@ -5,36 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timeline Budget Planner</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; background-color: #f4f4f9; }
         .hidden { display: none; }
-        input, button { display: block; width: 100%; margin: 10px 0; padding: 10px; }
+        input, button, select { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .expense-row { border-left: 4px solid #007bff; padding: 10px; margin: 10px 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .expense-date { font-weight: bold; color: #555; font-size: 0.9em; }
+        .expense-details { display: flex; justify-content: space-between; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <!-- Login Section -->
-    <div id="login-section">
+    <div id="login-section" class="card">
         <h2>Secure Login</h2>
         <input type="email" id="email" placeholder="Email">
         <input type="password" id="password" placeholder="Password">
         <button id="login-btn">Login</button>
     </div>
 
-    <!-- Budget Planner Section (Hidden until logged in) -->
+    <!-- Budget Planner Section -->
     <div id="app-section" class="hidden">
-        <h2>My Budget Timeline</h2>
-        <button id="logout-btn">Logout</button>
-        <div id="timeline-container">
-            <p>Welcome! Your secure timeline will load here.</p>
+        <div class="card">
+            <h2>Add Budget Entry</h2>
+            <input type="date" id="expense-date" required>
+            <input type="text" id="expense-category" placeholder="Category (e.g., Travel, Rent)" required>
+            <input type="number" id="expense-amount" placeholder="Amount" required>
+            <!-- We will add the screenshot upload button here in the next step -->
+            <button id="add-btn" style="background-color: #28a745; color: white; border: none; border-radius: 4px;">Save Entry</button>
         </div>
+
+        <div class="card">
+            <h2>My Timeline</h2>
+            <div id="timeline-container">
+                <!-- Data will load here -->
+            </div>
+        </div>
+        
+        <button id="logout-btn" style="background-color: #dc3545; color: white; border: none; border-radius: 4px;">Logout</button>
     </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        // Import Firestore
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
-        // Your specific Firebase configuration
         const firebaseConfig = {
           apiKey: "AIzaSyDm_SuNXATl-M3VLWx7nK8auu-y22S5hfs",
           authDomain: "lifetime-ledger-57338.firebaseapp.com",
@@ -45,44 +62,83 @@
           measurementId: "G-LV9MPEKSCZ"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        // Connect UI Elements
+        // UI Elements
         const loginSection = document.getElementById('login-section');
         const appSection = document.getElementById('app-section');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const loginBtn = document.getElementById('login-btn');
-        const logoutBtn = document.getElementById('logout-btn');
+        const timelineContainer = document.getElementById('timeline-container');
+        let unsubscribe = null; // Used to stop listening to database on logout
 
-        // 1. Login Action
-        loginBtn.addEventListener('click', () => {
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            
-            signInWithEmailAndPassword(auth, email, password)
-                .catch((error) => {
-                    alert("Login Failed: " + error.message);
-                });
+        // Login / Logout Logic
+        document.getElementById('login-btn').addEventListener('click', () => {
+            signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value)
+                .catch(error => alert("Login Failed: " + error.message));
         });
 
-        // 2. Logout Action
-        logoutBtn.addEventListener('click', () => {
+        document.getElementById('logout-btn').addEventListener('click', () => {
             signOut(auth);
         });
 
-        // 3. Monitor Login State
+        // Add New Entry Logic
+        document.getElementById('add-btn').addEventListener('click', async () => {
+            const date = document.getElementById('expense-date').value;
+            const category = document.getElementById('expense-category').value;
+            const amount = document.getElementById('expense-amount').value;
+            const user = auth.currentUser;
+
+            if (user && date && category && amount) {
+                try {
+                    // Save data to the specific user's private collection
+                    await addDoc(collection(db, `users/${user.uid}/expenses`), {
+                        date: date,
+                        category: category,
+                        amount: Number(amount),
+                        timestamp: new Date() // Used to sort entries
+                    });
+                    
+                    // Clear inputs
+                    document.getElementById('expense-category').value = '';
+                    document.getElementById('expense-amount').value = '';
+                } catch (e) {
+                    alert("Error saving: " + e.message);
+                }
+            } else {
+                alert("Please fill all fields.");
+            }
+        });
+
+        // Monitor Login State & Load Data
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // Securely logged in -> Show app, hide login
                 loginSection.classList.add('hidden');
                 appSection.classList.remove('hidden');
+
+                // Load and listen to the user's data in real-time
+                const q = query(collection(db, `users/${user.uid}/expenses`), orderBy("date", "desc"));
+                
+                unsubscribe = onSnapshot(q, (snapshot) => {
+                    timelineContainer.innerHTML = ''; // Clear old data
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        timelineContainer.innerHTML += `
+                            <div class="expense-row">
+                                <div class="expense-date">${data.date}</div>
+                                <div class="expense-details">
+                                    <span>${data.category}</span>
+                                    <strong>₹${data.amount}</strong>
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
             } else {
-                // Logged out -> Show login, hide app
                 loginSection.classList.remove('hidden');
                 appSection.classList.add('hidden');
+                if (unsubscribe) unsubscribe(); // Stop downloading data when logged out
+                timelineContainer.innerHTML = '';
             }
         });
     </script>
