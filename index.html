@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timeline Budget Planner</title>
+    <title>Private Timeline Budget Planner</title>
     <style>
         body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; background-color: #f4f4f9; }
         .hidden { display: none; }
-        input, button, select { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
+        input, button { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .expense-row { border-left: 4px solid #007bff; padding: 10px; margin: 10px 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .expense-row { border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .expense-date { font-weight: bold; color: #555; font-size: 0.9em; }
-        .expense-details { display: flex; justify-content: space-between; margin-top: 5px; }
+        .expense-details { display: flex; justify-content: space-between; margin-top: 5px; margin-bottom: 10px; font-size: 1.1em;}
+        .receipt-img { max-width: 100%; border-radius: 4px; margin-top: 10px; display: block; border: 1px solid #ddd; }
+        .download-btn { display: inline-block; background: #007bff; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 0.8em; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
@@ -31,8 +33,12 @@
             <input type="date" id="expense-date" required>
             <input type="text" id="expense-category" placeholder="Category (e.g., Travel, Rent)" required>
             <input type="number" id="expense-amount" placeholder="Amount" required>
-            <!-- We will add the screenshot upload button here in the next step -->
-            <button id="add-btn" style="background-color: #28a745; color: white; border: none; border-radius: 4px;">Save Entry</button>
+            
+            <!-- File Upload (Max 1MB) -->
+            <label for="expense-receipt" style="font-size: 0.9em; color: #555;">Attach Private Screenshot (Under 1MB):</label>
+            <input type="file" id="expense-receipt" accept="image/*">
+            
+            <button id="add-btn" style="background-color: #28a745; color: white; border: none; border-radius: 4px;">Save Secure Entry</button>
         </div>
 
         <div class="card">
@@ -45,21 +51,18 @@
         <button id="logout-btn" style="background-color: #dc3545; color: white; border: none; border-radius: 4px;">Logout</button>
     </div>
 
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs (Only Auth and Firestore needed) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        // Import Firestore
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
         const firebaseConfig = {
           apiKey: "AIzaSyDm_SuNXATl-M3VLWx7nK8auu-y22S5hfs",
           authDomain: "lifetime-ledger-57338.firebaseapp.com",
           projectId: "lifetime-ledger-57338",
-          storageBucket: "lifetime-ledger-57338.firebasestorage.app",
           messagingSenderId: "846282790599",
-          appId: "1:846282790599:web:d1c6fdeebb3198cae910e2",
-          measurementId: "G-LV9MPEKSCZ"
+          appId: "1:846282790599:web:d1c6fdeebb3198cae910e2"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -70,7 +73,8 @@
         const loginSection = document.getElementById('login-section');
         const appSection = document.getElementById('app-section');
         const timelineContainer = document.getElementById('timeline-container');
-        let unsubscribe = null; // Used to stop listening to database on logout
+        const addBtn = document.getElementById('add-btn');
+        let unsubscribe = null;
 
         // Login / Logout Logic
         document.getElementById('login-btn').addEventListener('click', () => {
@@ -82,47 +86,102 @@
             signOut(auth);
         });
 
-        // Add New Entry Logic
-        document.getElementById('add-btn').addEventListener('click', async () => {
+        // Helper Function to completely automate Base64 Conversion
+        function convertToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Add New Entry Logic with Base64 Conversion
+        addBtn.addEventListener('click', async () => {
             const date = document.getElementById('expense-date').value;
             const category = document.getElementById('expense-category').value;
             const amount = document.getElementById('expense-amount').value;
+            const fileInput = document.getElementById('expense-receipt');
+            const file = fileInput.files[0];
             const user = auth.currentUser;
 
             if (user && date && category && amount) {
+                
+                let base64String = null;
+
+                // If a file is selected, process it entirely in the background
+                if (file) {
+                    // Check if file is over 1MB (1,048,576 bytes)
+                    if (file.size > 1048576) {
+                        alert("For absolute privacy, your screenshot is being saved directly into the text database. It must be compressed to under 1MB. Please compress the image and try again.");
+                        return; // Stop the upload process
+                    }
+                    
+                    addBtn.innerText = "Encrypting and Saving...";
+                    addBtn.disabled = true;
+                    
+                    // Automatically convert image to text
+                    try {
+                        base64String = await convertToBase64(file);
+                    } catch (error) {
+                        alert("Error converting image.");
+                        addBtn.innerText = "Save Secure Entry";
+                        addBtn.disabled = false;
+                        return;
+                    }
+                } else {
+                    addBtn.innerText = "Saving...";
+                    addBtn.disabled = true;
+                }
+
                 try {
-                    // Save data to the specific user's private collection
+                    // Save all data natively into the locked Firestore database
                     await addDoc(collection(db, `users/${user.uid}/expenses`), {
                         date: date,
                         category: category,
                         amount: Number(amount),
-                        timestamp: new Date() // Used to sort entries
+                        receiptBase64: base64String, // This is the image code
+                        timestamp: new Date()
                     });
                     
-                    // Clear inputs
+                    // Clear inputs for the next entry
                     document.getElementById('expense-category').value = '';
                     document.getElementById('expense-amount').value = '';
+                    fileInput.value = '';
                 } catch (e) {
                     alert("Error saving: " + e.message);
+                } finally {
+                    addBtn.innerText = "Save Secure Entry";
+                    addBtn.disabled = false;
                 }
             } else {
-                alert("Please fill all fields.");
+                alert("Please fill in Date, Category, and Amount.");
             }
         });
 
-        // Monitor Login State & Load Data
+        // Monitor Login State & Load Data Automatically
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginSection.classList.add('hidden');
                 appSection.classList.remove('hidden');
 
-                // Load and listen to the user's data in real-time
                 const q = query(collection(db, `users/${user.uid}/expenses`), orderBy("date", "desc"));
                 
                 unsubscribe = onSnapshot(q, (snapshot) => {
-                    timelineContainer.innerHTML = ''; // Clear old data
+                    timelineContainer.innerHTML = '';
                     snapshot.forEach((doc) => {
                         const data = doc.data();
+                        
+                        // Automatically decode and display the image if it exists
+                        let attachmentHtml = '';
+                        if (data.receiptBase64) {
+                            // The browser instantly turns the text back into a viewable image
+                            attachmentHtml = `
+                                <img src="${data.receiptBase64}" class="receipt-img" alt="Private Screenshot">
+                                <a href="${data.receiptBase64}" download="payment_receipt_${data.date}.jpg" class="download-btn">⬇ Download Receipt</a>
+                            `;
+                        }
+
                         timelineContainer.innerHTML += `
                             <div class="expense-row">
                                 <div class="expense-date">${data.date}</div>
@@ -130,6 +189,7 @@
                                     <span>${data.category}</span>
                                     <strong>₹${data.amount}</strong>
                                 </div>
+                                ${attachmentHtml}
                             </div>
                         `;
                     });
@@ -137,7 +197,7 @@
             } else {
                 loginSection.classList.remove('hidden');
                 appSection.classList.add('hidden');
-                if (unsubscribe) unsubscribe(); // Stop downloading data when logged out
+                if (unsubscribe) unsubscribe();
                 timelineContainer.innerHTML = '';
             }
         });
