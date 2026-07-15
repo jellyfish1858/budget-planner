@@ -7,11 +7,14 @@
     <style>
         body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; background-color: #f4f4f9; }
         .hidden { display: none; }
-        input, button { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
+        /* Added 'select' to the styling for the dropdown menu */
+        input, button, select { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .expense-row { border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .expense-date { font-weight: bold; color: #555; font-size: 0.9em; }
-        .expense-details { display: flex; justify-content: space-between; margin-top: 5px; margin-bottom: 10px; font-size: 1.1em;}
+        .expense-details { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; margin-bottom: 10px; font-size: 1.1em;}
+        /* Styling for the Husband/Wife label */
+        .payer-badge { font-size: 0.75em; background: #e2e3e5; padding: 4px 8px; border-radius: 12px; color: #333; margin-left: 8px; font-weight: normal; }
         .receipt-container { margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px;}
         .receipt-img { max-width: 100%; border-radius: 4px; margin-bottom: 5px; display: block; border: 1px solid #ddd; }
         .download-btn { display: inline-block; background: #007bff; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 0.8em; margin-bottom: 15px; text-align: center; width: 100%; box-sizing: border-box;}
@@ -33,10 +36,18 @@
         <div class="card">
             <h2>Add Budget Entry</h2>
             <input type="date" id="expense-date" required>
+            
+            <!-- New Paid By Dropdown -->
+            <select id="expense-paid-by" required>
+                <option value="" disabled selected>Select Paid By...</option>
+                <option value="Husband">Husband</option>
+                <option value="Wife">Wife</option>
+            </select>
+
             <input type="text" id="expense-category" placeholder="Category (e.g., Travel, Rent)" required>
             <input type="number" id="expense-amount" placeholder="Amount (₹)" required>
             
-            <!-- File Upload (Now supports multiple files) -->
+            <!-- File Upload -->
             <label for="expense-receipt" style="font-size: 0.9em; color: #555;">Attach Private Screenshots (Combined total under 750KB):</label>
             <input type="file" id="expense-receipt" accept="image/*" multiple>
             
@@ -54,6 +65,7 @@
         <button id="logout-btn" style="background-color: #dc3545; color: white; border: none; border-radius: 4px;">Logout</button>
     </div>
 
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -97,21 +109,21 @@
             });
         }
 
-        // Upgraded Entry Logic for Multiple Files
+        // Upgraded Entry Logic
         addBtn.addEventListener('click', async () => {
             const date = document.getElementById('expense-date').value;
+            const paidBy = document.getElementById('expense-paid-by').value;
             const category = document.getElementById('expense-category').value;
             const amount = document.getElementById('expense-amount').value;
             const fileInput = document.getElementById('expense-receipt');
             const files = fileInput.files;
             const user = auth.currentUser;
 
-            if (user && date && category && amount) {
+            if (user && date && paidBy && category && amount) {
                 
                 let base64Strings = [];
 
                 if (files.length > 0) {
-                    // Check combined file size (750KB limit to account for Base64 expansion)
                     let totalSize = 0;
                     for (let i = 0; i < files.length; i++) {
                         totalSize += files[i].size;
@@ -142,14 +154,18 @@
                 }
 
                 try {
+                    // Added paidBy field to database push
                     await addDoc(collection(db, `users/${user.uid}/expenses`), {
                         date: date,
+                        paidBy: paidBy,
                         category: category,
                         amount: Number(amount),
-                        receiptsBase64: base64Strings, // Saves the array of images
+                        receiptsBase64: base64Strings, 
                         timestamp: new Date()
                     });
                     
+                    // Reset fields
+                    document.getElementById('expense-paid-by').value = '';
                     document.getElementById('expense-category').value = '';
                     document.getElementById('expense-amount').value = '';
                     fileInput.value = '';
@@ -160,11 +176,11 @@
                     addBtn.disabled = false;
                 }
             } else {
-                alert("Please fill in Date, Category, and Amount.");
+                alert("Please fill in Date, Paid By, Category, and Amount.");
             }
         });
 
-        // Upgraded Display Logic with Total Calculator
+        // Display Logic
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginSection.classList.add('hidden');
@@ -178,13 +194,10 @@
 
                     snapshot.forEach((doc) => {
                         const data = doc.data();
-                        
-                        // Calculate total
                         totalAmount += data.amount;
                         
                         let attachmentHtml = '';
                         
-                        // Handle multiple newly uploaded images
                         if (data.receiptsBase64 && data.receiptsBase64.length > 0) {
                             attachmentHtml += '<div class="receipt-container">';
                             data.receiptsBase64.forEach((b64, index) => {
@@ -194,9 +207,7 @@
                                 `;
                             });
                             attachmentHtml += '</div>';
-                        } 
-                        // Handle single images from older code versions
-                        else if (data.receiptBase64) {
+                        } else if (data.receiptBase64) {
                             attachmentHtml += `
                                 <div class="receipt-container">
                                     <img src="${data.receiptBase64}" class="receipt-img" alt="Private Screenshot">
@@ -205,11 +216,14 @@
                             `;
                         }
 
+                        // Added payer badge display using data.paidBy
+                        const payerDisplay = data.paidBy ? `<span class="payer-badge">${data.paidBy}</span>` : '';
+
                         timelineContainer.innerHTML += `
                             <div class="expense-row">
                                 <div class="expense-date">${data.date}</div>
                                 <div class="expense-details">
-                                    <span>${data.category}</span>
+                                    <span>${data.category} ${payerDisplay}</span>
                                     <strong>₹${data.amount}</strong>
                                 </div>
                                 ${attachmentHtml}
@@ -217,7 +231,6 @@
                         `;
                     });
 
-                    // Update the visual total tracker
                     totalSpentDisplay.innerText = `Total: ₹${totalAmount}`;
                 });
             } else {
