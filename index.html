@@ -3,244 +3,448 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Private Timeline Budget Planner</title>
+    <title>Premium Timeline Budget Planner</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; background-color: #f4f4f9; }
-        .hidden { display: none; }
-        /* Added 'select' to the styling for the dropdown menu */
-        input, button, select { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .expense-row { border-left: 4px solid #007bff; padding: 15px; margin: 10px 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .expense-date { font-weight: bold; color: #555; font-size: 0.9em; }
-        .expense-details { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; margin-bottom: 10px; font-size: 1.1em;}
-        /* Styling for the Husband/Wife label */
-        .payer-badge { font-size: 0.75em; background: #e2e3e5; padding: 4px 8px; border-radius: 12px; color: #333; margin-left: 8px; font-weight: normal; }
-        .receipt-container { margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px;}
-        .receipt-img { max-width: 100%; border-radius: 4px; margin-bottom: 5px; display: block; border: 1px solid #ddd; }
-        .download-btn { display: inline-block; background: #007bff; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 0.8em; margin-bottom: 15px; text-align: center; width: 100%; box-sizing: border-box;}
-        .total-tracker { font-size: 1.3em; font-weight: bold; color: #dc3545; text-align: right; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 10px;}
+        /* Modern App Variables */
+        :root {
+            --primary: #4361ee;
+            --primary-hover: #3a0ca3;
+            --secondary: #4cc9f0;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #2b2d42;
+            --text-light: #8d99ae;
+            --danger: #ef233c;
+            --success: #2a9d8f;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 550px; }
+        .hidden { display: none !important; }
+        
+        /* Typography & Inputs */
+        h2 { margin-top: 0; font-weight: 600; color: var(--text-main); }
+        input, button, select { display: block; width: 100%; margin: 10px 0; padding: 12px; box-sizing: border-box; border-radius: 12px; border: 1px solid #e0e0e0; font-size: 1em; outline: none; transition: 0.3s; }
+        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1); }
+        
+        /* Buttons */
+        button { cursor: pointer; font-weight: 600; border: none; color: white; background: var(--primary); transition: all 0.2s ease; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        
+        /* Glass/Modern Cards */
+        .card { background: var(--card-bg); padding: 20px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.04); margin-bottom: 20px; animation: slideUp 0.4s ease forwards; }
+        
+        /* App Header */
+        .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .app-header h1 { font-size: 1.5em; margin: 0; }
+        .logout-sm { width: auto; margin: 0; padding: 8px 15px; font-size: 0.8em; border-radius: 8px; }
+
+        /* Calendar Styling */
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
+        .calendar-nav { display: flex; gap: 10px; }
+        .calendar-nav button { margin: 0; padding: 5px 10px; width: auto; border-radius: 8px; font-size: 1.2em; background: #f1f3f5; color: var(--text-main); }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
+        .day-name { font-size: 0.75em; color: var(--text-light); font-weight: bold; margin-bottom: 5px; }
+        .cal-day { padding: 10px 5px; border-radius: 10px; cursor: pointer; font-size: 0.9em; transition: 0.2s; position: relative; }
+        .cal-day:hover { background: #f1f3f5; }
+        .cal-day.active { background: var(--primary); color: white; font-weight: bold; box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3); }
+        .cal-day.has-data::after { content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: var(--secondary); border-radius: 50%; }
+        .cal-day.active.has-data::after { background: white; }
+        .cal-day.empty { cursor: default; }
+        
+        /* Filters */
+        .filter-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .filter-group input, .filter-group select { margin: 0; }
+        .active-date-badge { display: inline-block; background: var(--primary); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8em; margin-bottom: 15px; cursor: pointer; }
+        
+        /* Timeline */
+        .total-tracker { font-size: 1.5em; font-weight: bold; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f3f5; padding-bottom: 15px; margin-bottom: 15px; }
+        .expense-row { border-left: 4px solid var(--primary); padding: 15px; margin: 12px 0; background: var(--card-bg); border-radius: 0 12px 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.03); transition: 0.3s; animation: fadeIn 0.4s ease forwards; }
+        .expense-row:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+        .expense-date { font-weight: 600; color: var(--text-light); font-size: 0.85em; }
+        .expense-details { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; font-size: 1.1em; }
+        .payer-badge { font-size: 0.7em; background: #e2e3e5; padding: 4px 8px; border-radius: 12px; color: #333; margin-left: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;}
+        .receipt-container { margin-top: 15px; border-top: 1px dashed #eee; padding-top: 10px;}
+        .receipt-img { max-width: 100%; border-radius: 8px; margin-bottom: 10px; display: block; border: 1px solid #f1f3f5; }
+        .download-btn { display: block; background: #f8f9fa; color: var(--primary); padding: 10px; text-decoration: none; border-radius: 8px; font-size: 0.85em; text-align: center; font-weight: 600; border: 1px solid #eee; margin-bottom: 10px;}
+        
+        /* Animations */
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
+<div class="app-container">
     <!-- Login Section -->
     <div id="login-section" class="card">
-        <h2>Secure Login</h2>
-        <input type="email" id="email" placeholder="Email">
+        <h2 style="text-align: center; margin-bottom: 20px;">Welcome Back</h2>
+        <input type="email" id="email" placeholder="Email Address">
         <input type="password" id="password" placeholder="Password">
-        <button id="login-btn">Login</button>
+        <button id="login-btn">Secure Login</button>
     </div>
 
-    <!-- Budget Planner Section -->
+    <!-- Main App Section -->
     <div id="app-section" class="hidden">
+        
+        <!-- Header -->
+        <div class="app-header">
+            <h1>My Ledger</h1>
+            <button id="logout-btn" class="btn-danger logout-sm">Logout</button>
+        </div>
+
+        <!-- Dashboard / Calendar Card -->
         <div class="card">
-            <h2>Add Budget Entry</h2>
+            <div class="calendar-header">
+                <span id="cal-month-year">Month Year</span>
+                <div class="calendar-nav">
+                    <button id="prev-month">◀</button>
+                    <button id="next-month">▶</button>
+                </div>
+            </div>
+            <div class="calendar-grid">
+                <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div><div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div>
+            </div>
+            <div id="calendar-days" class="calendar-grid">
+                <!-- Days generated by JS -->
+            </div>
+        </div>
+
+        <!-- Add New Entry Toggle Button -->
+        <button id="toggle-add-btn" class="btn-outline card" style="text-align: center; display: block; padding: 15px;">➕ Add New Expense</button>
+
+        <!-- Hidden Add Form -->
+        <div id="add-form-card" class="card hidden">
+            <h2>New Entry</h2>
             <input type="date" id="expense-date" required>
-            
-            <!-- New Paid By Dropdown -->
             <select id="expense-paid-by" required>
-                <option value="" disabled selected>Select Paid By...</option>
+                <option value="" disabled selected>Who Paid?</option>
                 <option value="Husband">Husband</option>
                 <option value="Wife">Wife</option>
             </select>
-
-            <input type="text" id="expense-category" placeholder="Category (e.g., Travel, Rent)" required>
+            <input type="text" id="expense-category" placeholder="Category (e.g., Groceries)" required>
             <input type="number" id="expense-amount" placeholder="Amount (₹)" required>
             
-            <!-- File Upload -->
-            <label for="expense-receipt" style="font-size: 0.9em; color: #555;">Attach Private Screenshots (Combined total under 750KB):</label>
-            <input type="file" id="expense-receipt" accept="image/*" multiple>
+            <label for="expense-receipt" style="font-size: 0.85em; color: var(--text-light); margin-top: 10px; display: block;">Attach Screenshots (Max 750KB total):</label>
+            <input type="file" id="expense-receipt" accept="image/*" multiple style="padding: 5px;">
             
-            <button id="add-btn" style="background-color: #28a745; color: white; border: none; border-radius: 4px;">Save Secure Entry</button>
+            <button id="add-btn" class="btn-success">Save Entry</button>
+            <button id="cancel-add-btn" style="background: #eee; color: #333; margin-top: 5px;">Cancel</button>
         </div>
 
+        <!-- Filter & Timeline Card -->
         <div class="card">
-            <h2>My Timeline</h2>
-            <div id="total-spent" class="total-tracker">Total: ₹0</div>
+            <div class="total-tracker">
+                <span style="font-size: 0.6em; color: var(--text-light); font-weight: normal; text-transform: uppercase;">Total Spent</span>
+                <span id="total-spent">₹0</span>
+            </div>
+
+            <!-- Smart Filters -->
+            <div class="filter-group">
+                <input type="text" id="search-filter" placeholder="Search categories...">
+                <select id="payer-filter">
+                    <option value="All">All Payers</option>
+                    <option value="Husband">Husband</option>
+                    <option value="Wife">Wife</option>
+                </select>
+            </div>
+            
+            <!-- Shows up if a specific date is clicked on the calendar -->
+            <div id="active-date-indicator" class="active-date-indicator hidden">
+                <span id="clear-date-filter" class="active-date-badge">Showing: YYYY-MM-DD ✖</span>
+            </div>
+
             <div id="timeline-container">
-                <!-- Data will load here -->
+                <!-- Timeline populated by JS -->
             </div>
         </div>
-        
-        <button id="logout-btn" style="background-color: #dc3545; color: white; border: none; border-radius: 4px;">Logout</button>
     </div>
+</div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        
-        const firebaseConfig = {
-          apiKey: "AIzaSyDm_SuNXATl-M3VLWx7nK8auu-y22S5hfs",
-          authDomain: "lifetime-ledger-57338.firebaseapp.com",
-          projectId: "lifetime-ledger-57338",
-          messagingSenderId: "846282790599",
-          appId: "1:846282790599:web:d1c6fdeebb3198cae910e2"
-        };
+<!-- Firebase SDKs -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyDm_SuNXATl-M3VLWx7nK8auu-y22S5hfs",
+      authDomain: "lifetime-ledger-57338.firebaseapp.com",
+      projectId: "lifetime-ledger-57338",
+      messagingSenderId: "846282790599",
+      appId: "1:846282790599:web:d1c6fdeebb3198cae910e2"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-        // UI Elements
-        const loginSection = document.getElementById('login-section');
-        const appSection = document.getElementById('app-section');
-        const timelineContainer = document.getElementById('timeline-container');
-        const totalSpentDisplay = document.getElementById('total-spent');
-        const addBtn = document.getElementById('add-btn');
-        let unsubscribe = null;
+    // Global State
+    let allExpenses = [];
+    let currentDate = new Date();
+    let currentMonth = currentDate.getMonth();
+    let currentYear = currentDate.getFullYear();
+    let selectedDateFilter = null; // Stores 'YYYY-MM-DD' if a day is clicked
 
-        document.getElementById('login-btn').addEventListener('click', () => {
-            signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value)
-                .catch(error => alert("Login Failed: " + error.message));
-        });
+    // UI Elements
+    const loginSection = document.getElementById('login-section');
+    const appSection = document.getElementById('app-section');
+    const timelineContainer = document.getElementById('timeline-container');
+    const totalSpentDisplay = document.getElementById('total-spent');
+    const addFormCard = document.getElementById('add-form-card');
+    const toggleAddBtn = document.getElementById('toggle-add-btn');
+    
+    // Auth Logic
+    document.getElementById('login-btn').addEventListener('click', () => {
+        signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value)
+            .catch(error => alert("Login Failed: " + error.message));
+    });
+    document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            signOut(auth);
-        });
+    // Form Toggle Logic
+    toggleAddBtn.addEventListener('click', () => {
+        addFormCard.classList.remove('hidden');
+        toggleAddBtn.classList.add('hidden');
+        // Auto-set date to today
+        document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+    });
+    document.getElementById('cancel-add-btn').addEventListener('click', () => {
+        addFormCard.classList.add('hidden');
+        toggleAddBtn.classList.remove('hidden');
+    });
 
-        function convertToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
+    // --- CALENDAR LOGIC ---
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    function renderCalendar() {
+        document.getElementById('cal-month-year').innerText = `${months[currentMonth]} ${currentYear}`;
+        const daysContainer = document.getElementById('calendar-days');
+        daysContainer.innerHTML = '';
+
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+        // Add blank spaces for days before the 1st
+        for (let i = 0; i < firstDay; i++) {
+            daysContainer.innerHTML += `<div class="cal-day empty"></div>`;
         }
 
-        // Upgraded Entry Logic
-        addBtn.addEventListener('click', async () => {
-            const date = document.getElementById('expense-date').value;
-            const paidBy = document.getElementById('expense-paid-by').value;
-            const category = document.getElementById('expense-category').value;
-            const amount = document.getElementById('expense-amount').value;
-            const fileInput = document.getElementById('expense-receipt');
-            const files = fileInput.files;
-            const user = auth.currentUser;
+        // Generate days
+        for (let i = 1; i <= daysInMonth; i++) {
+            // Format to match database YYYY-MM-DD
+            const monthStr = String(currentMonth + 1).padStart(2, '0');
+            const dayStr = String(i).padStart(2, '0');
+            const dateString = `${currentYear}-${monthStr}-${dayStr}`;
 
-            if (user && date && paidBy && category && amount) {
-                
-                let base64Strings = [];
+            // Check if this date has expenses in our global array
+            const hasData = allExpenses.some(exp => exp.date === dateString);
+            
+            // Check if this is the currently selected date
+            const isActive = (selectedDateFilter === dateString) ? 'active' : '';
+            const dataClass = hasData ? 'has-data' : '';
 
-                if (files.length > 0) {
-                    let totalSize = 0;
-                    for (let i = 0; i < files.length; i++) {
-                        totalSize += files[i].size;
-                    }
-
-                    if (totalSize > 750000) {
-                        alert("To ensure your database doesn't crash, the combined size of the screenshots must be under 750KB. Please compress the images or upload fewer at once.");
-                        return; 
-                    }
-                    
-                    addBtn.innerText = "Encrypting and Saving...";
-                    addBtn.disabled = true;
-                    
-                    try {
-                        for (let i = 0; i < files.length; i++) {
-                            const b64 = await convertToBase64(files[i]);
-                            base64Strings.push(b64);
-                        }
-                    } catch (error) {
-                        alert("Error converting images.");
-                        addBtn.innerText = "Save Secure Entry";
-                        addBtn.disabled = false;
-                        return;
-                    }
+            const dayEl = document.createElement('div');
+            dayEl.className = `cal-day ${isActive} ${dataClass}`;
+            dayEl.innerText = i;
+            
+            dayEl.addEventListener('click', () => {
+                if (selectedDateFilter === dateString) {
+                    // Toggle off if clicked again
+                    selectedDateFilter = null; 
+                    document.getElementById('active-date-indicator').classList.add('hidden');
                 } else {
-                    addBtn.innerText = "Saving...";
-                    addBtn.disabled = true;
+                    selectedDateFilter = dateString;
+                    document.getElementById('active-date-indicator').classList.remove('hidden');
+                    document.getElementById('clear-date-filter').innerText = `Showing: ${dateString} ✖`;
                 }
+                renderCalendar(); // Re-render to show active styling
+                renderTimeline(); // Re-render timeline with new filter
+            });
 
-                try {
-                    // Added paidBy field to database push
-                    await addDoc(collection(db, `users/${user.uid}/expenses`), {
-                        date: date,
-                        paidBy: paidBy,
-                        category: category,
-                        amount: Number(amount),
-                        receiptsBase64: base64Strings, 
-                        timestamp: new Date()
-                    });
-                    
-                    // Reset fields
-                    document.getElementById('expense-paid-by').value = '';
-                    document.getElementById('expense-category').value = '';
-                    document.getElementById('expense-amount').value = '';
-                    fileInput.value = '';
-                } catch (e) {
-                    alert("Error saving: " + e.message);
-                } finally {
-                    addBtn.innerText = "Save Secure Entry";
-                    addBtn.disabled = false;
-                }
-            } else {
-                alert("Please fill in Date, Paid By, Category, and Amount.");
-            }
+            daysContainer.appendChild(dayEl);
+        }
+    }
+
+    document.getElementById('prev-month').addEventListener('click', () => {
+        currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+        renderCalendar();
+    });
+    document.getElementById('next-month').addEventListener('click', () => {
+        currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+        renderCalendar();
+    });
+
+    document.getElementById('clear-date-filter').addEventListener('click', () => {
+        selectedDateFilter = null;
+        document.getElementById('active-date-indicator').classList.add('hidden');
+        renderCalendar();
+        renderTimeline();
+    });
+
+    // --- TIMELINE & FILTER LOGIC ---
+    const searchFilter = document.getElementById('search-filter');
+    const payerFilter = document.getElementById('payer-filter');
+
+    searchFilter.addEventListener('input', renderTimeline);
+    payerFilter.addEventListener('change', renderTimeline);
+
+    function renderTimeline() {
+        timelineContainer.innerHTML = '';
+        let totalAmount = 0;
+
+        const searchText = searchFilter.value.toLowerCase();
+        const selectedPayer = payerFilter.value;
+
+        // Filter the array
+        const filteredExpenses = allExpenses.filter(data => {
+            const matchesDate = !selectedDateFilter || data.date === selectedDateFilter;
+            const matchesSearch = !searchText || data.category.toLowerCase().includes(searchText);
+            const matchesPayer = selectedPayer === "All" || data.paidBy === selectedPayer;
+            return matchesDate && matchesSearch && matchesPayer;
         });
 
-        // Display Logic
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                loginSection.classList.add('hidden');
-                appSection.classList.remove('hidden');
+        if (filteredExpenses.length === 0) {
+            timelineContainer.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">No expenses found for these filters.</p>';
+        }
 
-                const q = query(collection(db, `users/${user.uid}/expenses`), orderBy("date", "desc"));
-                
-                unsubscribe = onSnapshot(q, (snapshot) => {
-                    timelineContainer.innerHTML = '';
-                    let totalAmount = 0;
-
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        totalAmount += data.amount;
-                        
-                        let attachmentHtml = '';
-                        
-                        if (data.receiptsBase64 && data.receiptsBase64.length > 0) {
-                            attachmentHtml += '<div class="receipt-container">';
-                            data.receiptsBase64.forEach((b64, index) => {
-                                attachmentHtml += `
-                                    <img src="${b64}" class="receipt-img" alt="Screenshot ${index + 1}">
-                                    <a href="${b64}" download="receipt_${data.date}_part${index + 1}.jpg" class="download-btn">⬇ Download Part ${index + 1}</a>
-                                `;
-                            });
-                            attachmentHtml += '</div>';
-                        } else if (data.receiptBase64) {
-                            attachmentHtml += `
-                                <div class="receipt-container">
-                                    <img src="${data.receiptBase64}" class="receipt-img" alt="Private Screenshot">
-                                    <a href="${data.receiptBase64}" download="payment_receipt_${data.date}.jpg" class="download-btn">⬇ Download Receipt</a>
-                                </div>
-                            `;
-                        }
-
-                        // Added payer badge display using data.paidBy
-                        const payerDisplay = data.paidBy ? `<span class="payer-badge">${data.paidBy}</span>` : '';
-
-                        timelineContainer.innerHTML += `
-                            <div class="expense-row">
-                                <div class="expense-date">${data.date}</div>
-                                <div class="expense-details">
-                                    <span>${data.category} ${payerDisplay}</span>
-                                    <strong>₹${data.amount}</strong>
-                                </div>
-                                ${attachmentHtml}
-                            </div>
-                        `;
-                    });
-
-                    totalSpentDisplay.innerText = `Total: ₹${totalAmount}`;
+        filteredExpenses.forEach(data => {
+            totalAmount += data.amount;
+            
+            let attachmentHtml = '';
+            if (data.receiptsBase64 && data.receiptsBase64.length > 0) {
+                attachmentHtml += '<div class="receipt-container">';
+                data.receiptsBase64.forEach((b64, index) => {
+                    attachmentHtml += `
+                        <img src="${b64}" class="receipt-img" alt="Screenshot">
+                        <a href="${b64}" download="receipt_${data.date}_pt${index + 1}.jpg" class="download-btn">⬇ Download Part ${index + 1}</a>
+                    `;
                 });
-            } else {
-                loginSection.classList.remove('hidden');
-                appSection.classList.add('hidden');
-                if (unsubscribe) unsubscribe();
-                timelineContainer.innerHTML = '';
-                totalSpentDisplay.innerText = 'Total: ₹0';
+                attachmentHtml += '</div>';
+            } else if (data.receiptBase64) {
+                attachmentHtml += `
+                    <div class="receipt-container">
+                        <img src="${data.receiptBase64}" class="receipt-img" alt="Screenshot">
+                        <a href="${data.receiptBase64}" download="receipt_${data.date}.jpg" class="download-btn">⬇ Download Receipt</a>
+                    </div>
+                `;
             }
+
+            const payerDisplay = data.paidBy ? `<span class="payer-badge">${data.paidBy}</span>` : '';
+
+            timelineContainer.innerHTML += `
+                <div class="expense-row">
+                    <div class="expense-date">${data.date}</div>
+                    <div class="expense-details">
+                        <span>${data.category} ${payerDisplay}</span>
+                        <strong style="color:var(--text-main);">₹${data.amount}</strong>
+                    </div>
+                    ${attachmentHtml}
+                </div>
+            `;
         });
-    </script>
+
+        totalSpentDisplay.innerText = `₹${totalAmount}`;
+    }
+
+    // --- ADD ENTRY LOGIC (Base64) ---
+    function convertToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    document.getElementById('add-btn').addEventListener('click', async () => {
+        const date = document.getElementById('expense-date').value;
+        const paidBy = document.getElementById('expense-paid-by').value;
+        const category = document.getElementById('expense-category').value;
+        const amount = document.getElementById('expense-amount').value;
+        const fileInput = document.getElementById('expense-receipt');
+        const files = fileInput.files;
+        const user = auth.currentUser;
+        const addBtn = document.getElementById('add-btn');
+
+        if (user && date && paidBy && category && amount) {
+            let base64Strings = [];
+
+            if (files.length > 0) {
+                let totalSize = 0;
+                for (let i = 0; i < files.length; i++) totalSize += files[i].size;
+                
+                if (totalSize > 750000) {
+                    alert("Total image size must be under 750KB. Please compress or upload fewer images.");
+                    return; 
+                }
+                
+                addBtn.innerText = "Encrypting...";
+                addBtn.disabled = true;
+                
+                try {
+                    for (let i = 0; i < files.length; i++) {
+                        base64Strings.push(await convertToBase64(files[i]));
+                    }
+                } catch (error) {
+                    alert("Error converting images.");
+                    addBtn.innerText = "Save Entry"; addBtn.disabled = false;
+                    return;
+                }
+            } else {
+                addBtn.innerText = "Saving..."; addBtn.disabled = true;
+            }
+
+            try {
+                await addDoc(collection(db, `users/${user.uid}/expenses`), {
+                    date: date, paidBy: paidBy, category: category, amount: Number(amount),
+                    receiptsBase64: base64Strings, timestamp: new Date()
+                });
+                
+                // Reset form and hide it
+                document.getElementById('expense-paid-by').value = '';
+                document.getElementById('expense-category').value = '';
+                document.getElementById('expense-amount').value = '';
+                fileInput.value = '';
+                addFormCard.classList.add('hidden');
+                toggleAddBtn.classList.remove('hidden');
+                
+            } catch (e) {
+                alert("Error saving: " + e.message);
+            } finally {
+                addBtn.innerText = "Save Entry"; addBtn.disabled = false;
+            }
+        } else {
+            alert("Please fill in Date, Paid By, Category, and Amount.");
+        }
+    });
+
+    // --- MAIN DATABASE LISTENER ---
+    let unsubscribe = null;
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            loginSection.classList.add('hidden');
+            appSection.classList.remove('hidden');
+
+            const q = query(collection(db, `users/${user.uid}/expenses`), orderBy("date", "desc"));
+            
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                allExpenses = []; // Clear array
+                snapshot.forEach((doc) => allExpenses.push(doc.data()));
+                
+                // Update visuals
+                renderCalendar();
+                renderTimeline();
+            });
+        } else {
+            loginSection.classList.remove('hidden');
+            appSection.classList.add('hidden');
+            if (unsubscribe) unsubscribe();
+            allExpenses = [];
+        }
+    });
+</script>
 </body>
 </html>
